@@ -1,5 +1,15 @@
 {
   "projects": {
     "default": "odonto-metas-kerly"
-  }
+  },
+  "targets": {
+    "odonto-metas-kerly": {
+      "hosting": {
+        "odonto": [
+          "odonto-metas-kerly"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }
