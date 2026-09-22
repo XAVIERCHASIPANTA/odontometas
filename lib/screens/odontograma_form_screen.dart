@@ -5,6 +5,7 @@ import '../models/periodontograma.dart' show dientesArcadaSuperior, dientesArcad
 import '../theme/app_theme.dart';
 import '../widgets/marca_agua_muela_k.dart';
 import '../widgets/dientes_realistas.dart';
+import '../widgets/presionable.dart';
 
 class OdontogramaFormScreen extends StatefulWidget {
   final Odontograma examen;
@@ -19,46 +20,91 @@ class OdontogramaFormScreen extends StatefulWidget {
   State<OdontogramaFormScreen> createState() => _OdontogramaFormScreenState();
 }
 
-class _OdontogramaFormScreenState extends State<OdontogramaFormScreen> {
+class _OdontogramaFormScreenState extends State<OdontogramaFormScreen>
+    with TickerProviderStateMixin {
   late final TextEditingController _notasCtrl;
+  late final AnimationController _pulso;
   static const double _anchoColumna = 34.0;
 
   @override
   void initState() {
     super.initState();
     _notasCtrl = TextEditingController(text: widget.examen.notas ?? '');
+    _pulso = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 850),
+    )..repeat(reverse: true);
   }
 
   @override
   void dispose() {
     _notasCtrl.dispose();
+    _pulso.dispose();
     super.dispose();
   }
 
   Color _color(EstadoDiente e) => Color(estiloEstadoDiente[e]!.colorValue);
 
-  Widget _iconoDiente(String numeroFdi, {required bool esSuperior}) {
+  bool _esSevero(DienteOdontograma pieza) {
+    final estado = pieza.estadoGeneral ?? pieza.caras.values.firstWhere(
+          (e) => e == EstadoDiente.caries || e == EstadoDiente.extraccionIndicada,
+          orElse: () => EstadoDiente.sano,
+        );
+    return estado == EstadoDiente.caries || estado == EstadoDiente.extraccionIndicada;
+  }
+
+  Widget _iconoDiente(String numeroFdi, {required bool esSuperior, required int indice}) {
     final diente = widget.examen.dientes[numeroFdi]!;
     final tipo = tipoDientePorFdi(numeroFdi);
     final color = _color(diente.estadoVisual);
-    return GestureDetector(
-      onTap: () => _editarDiente(numeroFdi),
-      child: SizedBox(
-        width: _anchoColumna,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Transform.rotate(
-              angle: esSuperior ? 0 : 3.14159265,
-              child: diente.estadoGeneral == EstadoDiente.ausente
-                  ? const Icon(Icons.close, size: 26, color: Colors.black38)
-                  : DienteRealistaVector(
-                      tipo: tipo,
-                      size: 30,
-                      colorRelleno: color,
-                    ),
+    final esSevero = _esSevero(diente);
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: Duration(milliseconds: 600 + indice * 35),
+      curve: Curves.elasticOut,
+      builder: (context, valor, child) => Transform.scale(
+        scale: valor.clamp(0.0, 1.3),
+        child: Opacity(opacity: valor.clamp(0.0, 1.0), child: child),
+      ),
+      child: Presionable(
+        onTap: () => _editarDiente(numeroFdi),
+        child: AnimatedBuilder(
+          animation: _pulso,
+          builder: (context, child) {
+            if (!esSevero) return child!;
+            final t = _pulso.value;
+            return Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.red.withValues(alpha: 0.15 + 0.35 * t),
+                    blurRadius: 4 + 10 * t,
+                    spreadRadius: 1 + 2 * t,
+                  ),
+                ],
+              ),
+              child: child,
+            );
+          },
+          child: SizedBox(
+            width: _anchoColumna,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Transform.rotate(
+                  angle: esSuperior ? 0 : 3.14159265,
+                  child: diente.estadoGeneral == EstadoDiente.ausente
+                      ? const Icon(Icons.close, size: 26, color: Colors.black38)
+                      : DienteRealistaVector(
+                          tipo: tipo,
+                          size: 30,
+                          colorRelleno: color,
+                        ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -68,17 +114,39 @@ class _OdontogramaFormScreenState extends State<OdontogramaFormScreen> {
     final diente = widget.examen.dientes[numeroFdi]!;
     final color = _color(diente.estadoVisual);
     final esClaro = diente.estadoVisual == EstadoDiente.sano;
-    return GestureDetector(
+    final esSevero = _esSevero(diente);
+    final gradiente = [Color.lerp(color, Colors.white, 0.35)!, color];
+    return Presionable(
       onTap: () => _editarDiente(numeroFdi),
-      child: Container(
-        width: _anchoColumna,
-        margin: const EdgeInsets.symmetric(horizontal: 1),
-        padding: const EdgeInsets.symmetric(vertical: 3),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: Colors.black26),
-        ),
+      child: AnimatedBuilder(
+        animation: _pulso,
+        builder: (context, child) {
+          final t = esSevero ? _pulso.value : 0.0;
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 320),
+            curve: Curves.easeOut,
+            width: _anchoColumna,
+            margin: const EdgeInsets.symmetric(horizontal: 1),
+            padding: const EdgeInsets.symmetric(vertical: 3),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: gradiente,
+              ),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: Colors.black26),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.3 + 0.4 * t),
+                  blurRadius: 3 + 8 * t,
+                  spreadRadius: t,
+                ),
+              ],
+            ),
+            child: child,
+          );
+        },
         child: Text(
           numeroFdi,
           textAlign: TextAlign.center,
@@ -114,7 +182,10 @@ class _OdontogramaFormScreenState extends State<OdontogramaFormScreen> {
             children: [
               if (esSuperior)
                 Row(children: numeros.map((n) => _chipNumeroDiente(n)).toList()),
-              Row(children: numeros.map((n) => _iconoDiente(n, esSuperior: esSuperior)).toList()),
+              Row(children: [
+                for (int i = 0; i < numeros.length; i++)
+                  _iconoDiente(numeros[i], esSuperior: esSuperior, indice: i),
+              ]),
               if (!esSuperior)
                 Row(children: numeros.map((n) => _chipNumeroDiente(n)).toList()),
             ],

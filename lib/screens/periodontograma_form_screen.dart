@@ -6,6 +6,7 @@ import '../models/periodontograma.dart';
 import '../theme/app_theme.dart';
 import '../widgets/marca_agua_muela_k.dart';
 import '../widgets/dientes_realistas.dart';
+import '../widgets/presionable.dart';
 
 class PeriodontogramaFormScreen extends StatefulWidget {
   final Periodontograma examen;
@@ -100,11 +101,8 @@ class _PeriodontogramaFormScreenState extends State<PeriodontogramaFormScreen>
         scale: valor.clamp(0.0, 1.3),
         child: Opacity(opacity: valor.clamp(0.0, 1.0), child: child),
       ),
-      child: _Presionable(
-        onTap: () {
-          HapticFeedback.mediumImpact();
-          _editarDiente(numeroFdi);
-        },
+      child: Presionable(
+        onTap: () => _editarDiente(numeroFdi),
         child: AnimatedBuilder(
           animation: _pulso,
           builder: (context, child) {
@@ -144,11 +142,8 @@ class _PeriodontogramaFormScreenState extends State<PeriodontogramaFormScreen>
     final diente = widget.examen.dientes[numeroFdi]!;
     final gradiente = _gradienteParaProfundidad(diente.profundidadMaxima, diente.ausente);
     final esSevero = !diente.ausente && diente.profundidadMaxima >= 6;
-    return _Presionable(
-      onTap: () {
-        HapticFeedback.mediumImpact();
-        _editarDiente(numeroFdi);
-      },
+    return Presionable(
+      onTap: () => _editarDiente(numeroFdi),
       child: AnimatedBuilder(
         animation: _pulso,
         builder: (context, child) {
@@ -991,42 +986,6 @@ class _PeriodontogramaFormScreenState extends State<PeriodontogramaFormScreen>
 // ---------------------------------------------------------------------
 // GAUGE ANIMADO — anillo circular de progreso con porcentaje al centro
 // ---------------------------------------------------------------------
-
-// ---------------------------------------------------------------------
-// PRESIONABLE — envoltorio con retroalimentación visual al tocar
-// (se encoge ligeramente al presionar y rebota al soltar)
-// ---------------------------------------------------------------------
-
-class _Presionable extends StatefulWidget {
-  final Widget child;
-  final VoidCallback onTap;
-  const _Presionable({required this.child, required this.onTap});
-
-  @override
-  State<_Presionable> createState() => _PresionableState();
-}
-
-class _PresionableState extends State<_Presionable> {
-  bool _presionado = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _presionado = true),
-      onTapCancel: () => setState(() => _presionado = false),
-      onTapUp: (_) {
-        setState(() => _presionado = false);
-        widget.onTap();
-      },
-      child: AnimatedScale(
-        scale: _presionado ? 0.85 : 1.0,
-        duration: const Duration(milliseconds: 120),
-        curve: Curves.easeOut,
-        child: widget.child,
-      ),
-    );
-  }
-}
 
 class _Gauge extends StatelessWidget {
   final double valor; // 0-100
