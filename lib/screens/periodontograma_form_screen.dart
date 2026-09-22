@@ -22,9 +22,10 @@ class PeriodontogramaFormScreen extends StatefulWidget {
 }
 
 class _PeriodontogramaFormScreenState extends State<PeriodontogramaFormScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late final TextEditingController _notasCtrl;
   late final AnimationController _entrada;
+  late final AnimationController _pulso;
 
   static const double _anchoColumna = 15.0;
   static const double _alturaGrafico = 116.0;
@@ -48,12 +49,17 @@ class _PeriodontogramaFormScreenState extends State<PeriodontogramaFormScreen>
       vsync: this,
       duration: const Duration(milliseconds: 900),
     )..forward();
+    _pulso = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 850),
+    )..repeat(reverse: true);
   }
 
   @override
   void dispose() {
     _notasCtrl.dispose();
     _entrada.dispose();
+    _pulso.dispose();
     super.dispose();
   }
 
@@ -80,6 +86,7 @@ class _PeriodontogramaFormScreenState extends State<PeriodontogramaFormScreen>
   Widget _iconoDiente(String numeroFdi, {required bool esSuperior, required int indice}) {
     final diente = widget.examen.dientes[numeroFdi]!;
     final color = _colorParaProfundidad(diente.profundidadMaxima, diente.ausente);
+    final esSevero = !diente.ausente && diente.profundidadMaxima >= 6;
     final tipo = tipoDientePorFdi(numeroFdi);
     final icono = Transform.rotate(
       angle: esSuperior ? 0 : math.pi,
@@ -87,26 +94,46 @@ class _PeriodontogramaFormScreenState extends State<PeriodontogramaFormScreen>
     );
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
-      duration: Duration(milliseconds: 420 + indice * 18),
-      curve: Curves.easeOutBack,
+      duration: Duration(milliseconds: 600 + indice * 35),
+      curve: Curves.elasticOut,
       builder: (context, valor, child) => Transform.scale(
-        scale: valor.clamp(0.0, 1.0),
+        scale: valor.clamp(0.0, 1.3),
         child: Opacity(opacity: valor.clamp(0.0, 1.0), child: child),
       ),
-      child: GestureDetector(
+      child: _Presionable(
         onTap: () {
-          HapticFeedback.selectionClick();
+          HapticFeedback.mediumImpact();
           _editarDiente(numeroFdi);
         },
-        child: SizedBox(
-          width: _anchoColumna * 3,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              diente.ausente
-                  ? Icon(Icons.close_rounded, size: 26, color: Colors.grey.shade400)
-                  : icono,
-            ],
+        child: AnimatedBuilder(
+          animation: _pulso,
+          builder: (context, child) {
+            if (!esSevero) return child!;
+            final t = _pulso.value;
+            return Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.red.withValues(alpha: 0.15 + 0.35 * t),
+                    blurRadius: 4 + 10 * t,
+                    spreadRadius: 1 + 2 * t,
+                  ),
+                ],
+              ),
+              child: child,
+            );
+          },
+          child: SizedBox(
+            width: _anchoColumna * 3,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                diente.ausente
+                    ? Icon(Icons.close_rounded, size: 26, color: Colors.grey.shade400)
+                    : icono,
+              ],
+            ),
           ),
         ),
       ),
@@ -116,32 +143,41 @@ class _PeriodontogramaFormScreenState extends State<PeriodontogramaFormScreen>
   Widget _chipNumeroDiente(String numeroFdi) {
     final diente = widget.examen.dientes[numeroFdi]!;
     final gradiente = _gradienteParaProfundidad(diente.profundidadMaxima, diente.ausente);
-    return GestureDetector(
+    final esSevero = !diente.ausente && diente.profundidadMaxima >= 6;
+    return _Presionable(
       onTap: () {
-        HapticFeedback.selectionClick();
+        HapticFeedback.mediumImpact();
         _editarDiente(numeroFdi);
       },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 320),
-        curve: Curves.easeOut,
-        width: _anchoColumna * 3,
-        margin: const EdgeInsets.symmetric(horizontal: 1.2),
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: gradiente,
-          ),
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: [
-            BoxShadow(
-              color: gradiente.last.withValues(alpha: 0.35),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
+      child: AnimatedBuilder(
+        animation: _pulso,
+        builder: (context, child) {
+          final t = esSevero ? _pulso.value : 0.0;
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 320),
+            curve: Curves.easeOut,
+            width: _anchoColumna * 3,
+            margin: const EdgeInsets.symmetric(horizontal: 1.2),
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: gradiente,
+              ),
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: [
+                BoxShadow(
+                  color: gradiente.last.withValues(alpha: 0.35 + 0.4 * t),
+                  blurRadius: 4 + 8 * t,
+                  spreadRadius: t,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-          ],
-        ),
+            child: child,
+          );
+        },
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -461,7 +497,17 @@ class _PeriodontogramaFormScreenState extends State<PeriodontogramaFormScreen>
                                 ),
                               ],
                             ),
-                            child: DienteRealistaVector(tipo: tipo, size: 36, colorRelleno: color),
+                            child: TweenAnimationBuilder<double>(
+                              tween: Tween(begin: 0, end: 1),
+                              duration: const Duration(milliseconds: 500),
+                              curve: Curves.elasticOut,
+                              builder: (context, v, child) => Transform.scale(
+                                scale: v.clamp(0.0, 1.3),
+                                child: child,
+                              ),
+                              child: DienteRealistaVector(
+                                  tipo: tipo, size: 36, colorRelleno: color),
+                            ),
                           ),
                           const SizedBox(width: 14),
                           Expanded(
@@ -945,6 +991,42 @@ class _PeriodontogramaFormScreenState extends State<PeriodontogramaFormScreen>
 // ---------------------------------------------------------------------
 // GAUGE ANIMADO — anillo circular de progreso con porcentaje al centro
 // ---------------------------------------------------------------------
+
+// ---------------------------------------------------------------------
+// PRESIONABLE — envoltorio con retroalimentación visual al tocar
+// (se encoge ligeramente al presionar y rebota al soltar)
+// ---------------------------------------------------------------------
+
+class _Presionable extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onTap;
+  const _Presionable({required this.child, required this.onTap});
+
+  @override
+  State<_Presionable> createState() => _PresionableState();
+}
+
+class _PresionableState extends State<_Presionable> {
+  bool _presionado = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _presionado = true),
+      onTapCancel: () => setState(() => _presionado = false),
+      onTapUp: (_) {
+        setState(() => _presionado = false);
+        widget.onTap();
+      },
+      child: AnimatedScale(
+        scale: _presionado ? 0.85 : 1.0,
+        duration: const Duration(milliseconds: 120),
+        curve: Curves.easeOut,
+        child: widget.child,
+      ),
+    );
+  }
+}
 
 class _Gauge extends StatelessWidget {
   final double valor; // 0-100
