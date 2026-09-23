@@ -1,0 +1,47 @@
+name: odontometas
+description: Aplicación para gestión de metas y citas odontológicas.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  path_provider: ^2.1.4
+  table_calendar: ^3.2.0
+  flutter_local_notifications: ^17.2.3
+  timezone: ^0.9.4
+  intl: ^0.20.2
+  uuid: ^4.4.2
+  url_launcher: ^6.3.1
+  pdf: ^3.11.1
+  printing: ^5.13.4
+  file_picker: ^10.3.7
+  open_file: ^3.5.3
+  firebase_core: ^4.3.0
+  firebase_auth: ^6.1.3
+  cloud_firestore: ^6.4.1
+  google_sign_in: ^6.2.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.14.3
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/logo.jpg
+    - assets/images/banner_logo.png
+    - assets/images/texto_cursivo.png
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/logo.jpg"

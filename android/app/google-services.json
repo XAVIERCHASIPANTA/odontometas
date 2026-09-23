@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "344663140142",
+    "project_id": "odonto-metas-kerly",
+    "storage_bucket": "odonto-metas-kerly.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:344663140142:android:5c34c51e0f632011607cbf",
+        "android_client_info": {
+          "package_name": "com.example.odontometas"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "344663140142-i90eri5a4f4jj2pc98gsc1gjqli1b8c3.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.odontometas",
+            "certificate_hash": "82f7a00f80e728bf43835bb717491677cd5af6ea"
+          }
+        },
+        {
+          "client_id": "344663140142-7akla93u4kqk04ggvpurs592c6iv0pdg.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD-XatfzN9XiNNXEI7WowFvZd3ho63-DRQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "344663140142-7akla93u4kqk04ggvpurs592c6iv0pdg.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
