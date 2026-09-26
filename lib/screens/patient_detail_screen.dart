@@ -16,6 +16,8 @@ import '../theme/estilo_metas.dart';
 import '../widgets/fondo_decorativo.dart';
 import 'periodontograma_list_screen.dart';
 import 'evaluacion_riesgo_list_screen.dart';
+import 'odontograma_list_screen.dart';
+import 'presupuesto_screen.dart';
 
 class PatientDetailScreen extends StatefulWidget {
   final MetaGoal meta;
@@ -786,6 +788,58 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                     MaterialPageRoute(
                       builder: (_) =>
                           PeriodontogramaListScreen(paciente: paciente),
+                    ),
+                  );
+                  setState(() {});
+                },
+              ),
+            ),
+            const SizedBox(height: 12),
+            Card(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              child: ListTile(
+                leading: Icon(Icons.grid_view, color: colorPar.fuerte),
+                title: const Text(
+                  'Odontograma',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text(
+                  paciente.odontogramas.isEmpty
+                      ? 'Sin odontogramas registrados'
+                      : '${paciente.odontogramas.length} registrado(s)',
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => OdontogramaListScreen(paciente: paciente),
+                    ),
+                  );
+                  setState(() {});
+                },
+              ),
+            ),
+            const SizedBox(height: 12),
+            Card(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              child: ListTile(
+                leading: Icon(Icons.attach_money, color: colorPar.fuerte),
+                title: const Text(
+                  'Presupuesto',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text(
+                  paciente.presupuesto == null || paciente.presupuesto!.items.isEmpty
+                      ? 'Sin presupuesto creado'
+                      : 'Total: \$${paciente.presupuesto!.total.toStringAsFixed(2)}',
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => PresupuestoScreen(paciente: paciente),
                     ),
                   );
                   setState(() {});

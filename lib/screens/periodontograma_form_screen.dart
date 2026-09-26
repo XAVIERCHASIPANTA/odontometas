@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../models/periodontograma.dart';
 import '../theme/app_theme.dart';
@@ -20,12 +21,13 @@ class PeriodontogramaFormScreen extends StatefulWidget {
       _PeriodontogramaFormScreenState();
 }
 
-class _PeriodontogramaFormScreenState
-    extends State<PeriodontogramaFormScreen> {
+class _PeriodontogramaFormScreenState extends State<PeriodontogramaFormScreen>
+    with SingleTickerProviderStateMixin {
   late final TextEditingController _notasCtrl;
+  late final AnimationController _entrada;
 
   static const double _anchoColumna = 15.0;
-  static const double _alturaGrafico = 110.0;
+  static const double _alturaGrafico = 116.0;
   static const double _escalaPxPorMm = 8.0;
   static const List<String> _sitiosVestibular = [
     'vest_mesial',
@@ -42,28 +44,40 @@ class _PeriodontogramaFormScreenState
   void initState() {
     super.initState();
     _notasCtrl = TextEditingController(text: widget.examen.notas ?? '');
+    _entrada = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..forward();
   }
 
   @override
   void dispose() {
     _notasCtrl.dispose();
+    _entrada.dispose();
     super.dispose();
   }
 
+  // ---------------------------------------------------------------------
+  // COLOR / SEVERIDAD
+  // ---------------------------------------------------------------------
+
   Color _colorParaProfundidad(int pd, bool ausente) {
-    if (ausente) {
-      return Colors.grey.shade300;
-    }
-    if (pd >= 6) {
-      return Colors.red.shade400;
-    }
-    if (pd >= 4) {
-      return Colors.orange.shade400;
-    }
-    return Colors.green.shade400;
+    if (ausente) return Colors.grey.shade300;
+    if (pd >= 6) return const Color(0xFFE53935);
+    if (pd >= 4) return const Color(0xFFFB8C00);
+    return const Color(0xFF43A047);
   }
 
-  Widget _iconoDiente(String numeroFdi, {required bool esSuperior}) {
+  List<Color> _gradienteParaProfundidad(int pd, bool ausente) {
+    final base = _colorParaProfundidad(pd, ausente);
+    return [Color.lerp(base, Colors.white, 0.35)!, base];
+  }
+
+  // ---------------------------------------------------------------------
+  // ARCADA — dientes + chips + gráfico
+  // ---------------------------------------------------------------------
+
+  Widget _iconoDiente(String numeroFdi, {required bool esSuperior, required int indice}) {
     final diente = widget.examen.dientes[numeroFdi]!;
     final color = _colorParaProfundidad(diente.profundidadMaxima, diente.ausente);
     final tipo = tipoDientePorFdi(numeroFdi);
@@ -71,17 +85,29 @@ class _PeriodontogramaFormScreenState
       angle: esSuperior ? 0 : math.pi,
       child: DienteRealistaVector(tipo: tipo, size: 34, colorRelleno: color),
     );
-    return GestureDetector(
-      onTap: () => _editarDiente(numeroFdi),
-      child: SizedBox(
-        width: _anchoColumna * 3,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            diente.ausente
-                ? const Icon(Icons.close, size: 28, color: Colors.black38)
-                : icono,
-          ],
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: Duration(milliseconds: 420 + indice * 18),
+      curve: Curves.easeOutBack,
+      builder: (context, valor, child) => Transform.scale(
+        scale: valor.clamp(0.0, 1.0),
+        child: Opacity(opacity: valor.clamp(0.0, 1.0), child: child),
+      ),
+      child: GestureDetector(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          _editarDiente(numeroFdi);
+        },
+        child: SizedBox(
+          width: _anchoColumna * 3,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              diente.ausente
+                  ? Icon(Icons.close_rounded, size: 26, color: Colors.grey.shade400)
+                  : icono,
+            ],
+          ),
         ),
       ),
     );
@@ -89,17 +115,32 @@ class _PeriodontogramaFormScreenState
 
   Widget _chipNumeroDiente(String numeroFdi) {
     final diente = widget.examen.dientes[numeroFdi]!;
-    final color = _colorParaProfundidad(diente.profundidadMaxima, diente.ausente);
+    final gradiente = _gradienteParaProfundidad(diente.profundidadMaxima, diente.ausente);
     return GestureDetector(
-      onTap: () => _editarDiente(numeroFdi),
-      child: Container(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        _editarDiente(numeroFdi);
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 320),
+        curve: Curves.easeOut,
         width: _anchoColumna * 3,
-        margin: const EdgeInsets.symmetric(horizontal: 1),
-        padding: const EdgeInsets.symmetric(vertical: 3),
+        margin: const EdgeInsets.symmetric(horizontal: 1.2),
+        padding: const EdgeInsets.symmetric(vertical: 4),
         decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: Colors.black26),
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: gradiente,
+          ),
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: gradiente.last.withValues(alpha: 0.35),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -116,7 +157,7 @@ class _PeriodontogramaFormScreenState
             if (diente.movilidad > 0 && !diente.ausente)
               Text(
                 'M${diente.movilidad}',
-                style: const TextStyle(fontSize: 8, color: Colors.white),
+                style: const TextStyle(fontSize: 8, color: Colors.white70),
               ),
           ],
         ),
@@ -176,20 +217,16 @@ class _PeriodontogramaFormScreenState
                   : Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          Icons.circle,
-                          size: 5,
-                          color: d.sitios[clave]!.sangrado
-                              ? Colors.red.shade700
-                              : Colors.transparent,
+                        AnimatedScale(
+                          duration: const Duration(milliseconds: 250),
+                          scale: d.sitios[clave]!.sangrado ? 1 : 0,
+                          child: Icon(Icons.circle, size: 5, color: Colors.red.shade700),
                         ),
                         const SizedBox(height: 1),
-                        Icon(
-                          Icons.square,
-                          size: 5,
-                          color: d.sitios[clave]!.placa
-                              ? Colors.blueGrey.shade900
-                              : Colors.transparent,
+                        AnimatedScale(
+                          duration: const Duration(milliseconds: 250),
+                          scale: d.sitios[clave]!.placa ? 1 : 0,
+                          child: Icon(Icons.square, size: 5, color: Colors.blueGrey.shade900),
                         ),
                       ],
                     ),
@@ -197,6 +234,19 @@ class _PeriodontogramaFormScreenState
       ],
     );
   }
+
+  Widget _tituloFila(String texto) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 1),
+        child: Text(
+          texto,
+          style: TextStyle(
+            fontSize: 8,
+            color: Colors.black45,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.3,
+          ),
+        ),
+      );
 
   Widget _arcada(String titulo, List<String> numeros, {required bool esSuperior}) {
     final dientes = numeros.map((n) => widget.examen.dientes[n]!).toList();
@@ -208,13 +258,32 @@ class _PeriodontogramaFormScreenState
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
           child: SizedBox(
             width: double.infinity,
-            child: Text(
-              titulo.toUpperCase(),
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 5,
+                  height: 5,
+                  margin: const EdgeInsets.only(right: 6),
+                  decoration: BoxDecoration(
+                    color: AppTheme.rosaOscuro,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                Text(
+                  titulo.toUpperCase(),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12.5,
+                    letterSpacing: 0.6,
+                    color: AppTheme.rosaOscuro,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -223,19 +292,22 @@ class _PeriodontogramaFormScreenState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // "Foto" del diente (ilustración vectorial coloreada por estado)
-              Row(children: numeros.map((n) => _iconoDiente(n, esSuperior: esSuperior)).toList()),
+              Row(
+                children: [
+                  for (int i = 0; i < numeros.length; i++)
+                    _iconoDiente(numeros[i], esSuperior: esSuperior, indice: i),
+                ],
+              ),
               const SizedBox(height: 4),
-              const Text('Movilidad', style: TextStyle(fontSize: 8, color: Colors.black45)),
+              _tituloFila('MOVILIDAD'),
               _filaValorPorDiente(dientes, (d) => '${d.movilidad}'),
-              const Text('Furcación', style: TextStyle(fontSize: 8, color: Colors.black45)),
+              _tituloFila('FURCACIÓN'),
               _filaValorPorDiente(
                 dientes,
                 (d) => esMolar(d.numeroFdi) ? '${d.furca}' : '',
               ),
-              const SizedBox(height: 2),
-              Text(esSuperior ? 'Vestibular' : 'Vestibular',
-                  style: const TextStyle(fontSize: 9, color: Colors.black45)),
+              const SizedBox(height: 3),
+              _tituloFila('VESTIBULAR'),
               CustomPaint(
                 size: Size(anchoTotal, _alturaGrafico),
                 painter: _GraficoPeriodontalPainter(
@@ -244,27 +316,28 @@ class _PeriodontogramaFormScreenState
                   anchoColumna: _anchoColumna,
                   escalaPxPorMm: _escalaPxPorMm,
                   crecerHaciaArriba: true,
+                  colorParaProfundidad: _colorParaProfundidad,
                 ),
               ),
               const SizedBox(height: 2),
-              const Text('PD', style: TextStyle(fontSize: 8, color: Colors.black45)),
+              _tituloFila('PD'),
               _filaNumeros(dientes, clavesArriba, (s) => s.profundidadSondaje),
-              const Text('REC', style: TextStyle(fontSize: 8, color: Colors.black45)),
+              _tituloFila('REC'),
               _filaNumeros(dientes, clavesArriba, (s) => s.recesion),
-              const Text('NI', style: TextStyle(fontSize: 8, color: Colors.black45)),
+              _tituloFila('NI'),
               _filaNumeros(dientes, clavesArriba, (s) => s.nivelInsercionClinica),
               _filaIndicadores(dientes, clavesArriba),
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
+                padding: const EdgeInsets.symmetric(vertical: 5),
                 child: Row(children: numeros.map(_chipNumeroDiente).toList()),
               ),
               _filaIndicadores(dientes, clavesAbajo),
-              const Text('NI', style: TextStyle(fontSize: 8, color: Colors.black45)),
+              _tituloFila('NI'),
               _filaNumeros(dientes, clavesAbajo, (s) => s.nivelInsercionClinica),
               _filaNumeros(dientes, clavesAbajo, (s) => s.recesion),
-              const Text('REC', style: TextStyle(fontSize: 8, color: Colors.black45)),
+              _tituloFila('REC'),
               _filaNumeros(dientes, clavesAbajo, (s) => s.profundidadSondaje),
-              const Text('PD', style: TextStyle(fontSize: 8, color: Colors.black45)),
+              _tituloFila('PD'),
               const SizedBox(height: 2),
               CustomPaint(
                 size: Size(anchoTotal, _alturaGrafico),
@@ -274,11 +347,11 @@ class _PeriodontogramaFormScreenState
                   anchoColumna: _anchoColumna,
                   escalaPxPorMm: _escalaPxPorMm,
                   crecerHaciaArriba: false,
+                  colorParaProfundidad: _colorParaProfundidad,
                 ),
               ),
               const SizedBox(height: 2),
-              Text(esSuperior ? 'Palatino' : 'Lingual',
-                  style: const TextStyle(fontSize: 9, color: Colors.black45)),
+              _tituloFila(esSuperior ? 'PALATINO' : 'LINGUAL'),
             ],
           ),
         ),
@@ -286,154 +359,214 @@ class _PeriodontogramaFormScreenState
     );
   }
 
+  // ---------------------------------------------------------------------
+  // EDITAR DIENTE — bottom sheet rediseñado
+  // ---------------------------------------------------------------------
+
   Future<void> _editarDiente(String numeroFdi) async {
     final diente = widget.examen.dientes[numeroFdi]!;
+    final tipo = tipoDientePorFdi(numeroFdi);
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setModalState) {
+            final color = _colorParaProfundidad(diente.profundidadMaxima, diente.ausente);
+
             Widget filaSitio(String clave, String etiqueta) {
               final sitio = diente.sitios[clave]!;
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
+              return Container(
+                margin: const EdgeInsets.symmetric(vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
                 child: Row(
                   children: [
-                    SizedBox(width: 70, child: Text(etiqueta, style: const TextStyle(fontSize: 12))),
+                    SizedBox(
+                      width: 56,
+                      child: Text(etiqueta,
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                    ),
                     _campoNumero(
                       valor: sitio.profundidadSondaje,
                       etiqueta: 'PD',
                       onCambio: (v) => setModalState(() => sitio.profundidadSondaje = v),
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 8),
                     _campoNumero(
                       valor: sitio.recesion,
                       etiqueta: 'REC',
                       onCambio: (v) => setModalState(() => sitio.recesion = v),
                     ),
-                    const SizedBox(width: 6),
-                    IconButton(
-                      icon: Icon(
-                        Icons.water_drop,
-                        color: sitio.sangrado ? Colors.red : Colors.black26,
-                      ),
-                      tooltip: 'Sangrado al sondaje',
-                      onPressed: () =>
-                          setModalState(() => sitio.sangrado = !sitio.sangrado),
+                    const Spacer(),
+                    _botonToggle(
+                      activo: sitio.sangrado,
+                      colorActivo: Colors.red.shade600,
+                      icono: Icons.water_drop_rounded,
+                      onTap: () => setModalState(() => sitio.sangrado = !sitio.sangrado),
                     ),
-                    IconButton(
-                      icon: Icon(
-                        Icons.circle,
-                        color: sitio.placa ? Colors.blueGrey.shade900 : Colors.black26,
-                        size: 18,
-                      ),
-                      tooltip: 'Placa bacteriana',
-                      onPressed: () =>
-                          setModalState(() => sitio.placa = !sitio.placa),
+                    const SizedBox(width: 4),
+                    _botonToggle(
+                      activo: sitio.placa,
+                      colorActivo: Colors.blueGrey.shade800,
+                      icono: Icons.circle,
+                      onTap: () => setModalState(() => sitio.placa = !sitio.placa),
                     ),
                   ],
                 ),
               );
             }
 
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 16,
-                right: 16,
-                top: 16,
-                bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
-              ),
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            return DraggableScrollableSheet(
+              initialChildSize: 0.86,
+              maxChildSize: 0.95,
+              minChildSize: 0.5,
+              expand: false,
+              builder: (ctx, scrollCtrl) => Container(
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                child: ListView(
+                  controller: scrollCtrl,
+                  padding: EdgeInsets.zero,
                   children: [
-                    Row(
-                      children: [
-                        Text(
-                          'Diente $numeroFdi',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
+                    // ---- Encabezado con gradiente y diente grande ----
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+                      decoration: BoxDecoration(
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [color.withValues(alpha: 0.85), AppTheme.rosaOscuro],
                         ),
-                        const Spacer(),
-                        Row(
-                          children: [
-                            const Text('Ausente'),
-                            Switch(
-                              value: diente.ausente,
-                              onChanged: (v) =>
-                                  setModalState(() => diente.ausente = v),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    const Divider(),
-                    Row(
-                      children: [
-                        const Text('Movilidad: '),
-                        ...List.generate(4, (g) {
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 4),
-                            child: ChoiceChip(
-                              label: Text('$g'),
-                              selected: diente.movilidad == g,
-                              onSelected: (_) =>
-                                  setModalState(() => diente.movilidad = g),
-                            ),
-                          );
-                        }),
-                      ],
-                    ),
-                    if (esMolar(numeroFdi)) ...[
-                      const SizedBox(height: 8),
-                      Row(
+                      ),
+                      child: Row(
                         children: [
-                          const Text('Furca: '),
-                          ...List.generate(4, (g) {
-                            return Padding(
-                              padding: const EdgeInsets.only(right: 4),
-                              child: ChoiceChip(
-                                label: Text('$g'),
-                                selected: diente.furca == g,
-                                onSelected: (_) =>
-                                    setModalState(() => diente.furca = g),
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.15),
+                                  blurRadius: 8,
+                                ),
+                              ],
+                            ),
+                            child: DienteRealistaVector(tipo: tipo, size: 36, colorRelleno: color),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Pieza $numeroFdi',
+                                    style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold)),
+                                Text(_nombreTipoDiente(tipo),
+                                    style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                              ],
+                            ),
+                          ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text('Ausente',
+                                  style: TextStyle(color: Colors.white, fontSize: 12)),
+                              Switch(
+                                value: diente.ausente,
+                                activeColor: Colors.white,
+                                activeTrackColor: Colors.white38,
+                                onChanged: (v) => setModalState(() => diente.ausente = v),
                               ),
-                            );
-                          }),
+                            ],
+                          ),
                         ],
                       ),
-                    ],
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Vestibular',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                     ),
-                    filaSitio('vest_mesial', 'Mesial'),
-                    filaSitio('vest_central', 'Central'),
-                    filaSitio('vest_distal', 'Distal'),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Palatino / Lingual',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                    ),
-                    filaSitio('palat_mesial', 'Mesial'),
-                    filaSitio('palat_central', 'Central'),
-                    filaSitio('palat_distal', 'Distal'),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          setState(() {});
-                          Navigator.pop(ctx);
-                        },
-                        child: const Text('Listo'),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Text('Movilidad', style: TextStyle(fontWeight: FontWeight.w600)),
+                              const Spacer(),
+                              ...List.generate(4, (g) {
+                                final activo = diente.movilidad == g;
+                                return Padding(
+                                  padding: const EdgeInsets.only(left: 4),
+                                  child: _pildoraGrado(
+                                    texto: '$g',
+                                    activo: activo,
+                                    onTap: () => setModalState(() => diente.movilidad = g),
+                                  ),
+                                );
+                              }),
+                            ],
+                          ),
+                          if (esMolar(numeroFdi)) ...[
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                const Text('Furca', style: TextStyle(fontWeight: FontWeight.w600)),
+                                const Spacer(),
+                                ...List.generate(4, (g) {
+                                  final activo = diente.furca == g;
+                                  return Padding(
+                                    padding: const EdgeInsets.only(left: 4),
+                                    child: _pildoraGrado(
+                                      texto: '$g',
+                                      activo: activo,
+                                      onTap: () => setModalState(() => diente.furca = g),
+                                    ),
+                                  );
+                                }),
+                              ],
+                            ),
+                          ],
+                          const SizedBox(height: 18),
+                          _tituloSeccion('Vestibular', Icons.arrow_upward_rounded),
+                          filaSitio('vest_mesial', 'Mesial'),
+                          filaSitio('vest_central', 'Central'),
+                          filaSitio('vest_distal', 'Distal'),
+                          const SizedBox(height: 12),
+                          _tituloSeccion('Palatino / Lingual', Icons.arrow_downward_rounded),
+                          filaSitio('palat_mesial', 'Mesial'),
+                          filaSitio('palat_central', 'Central'),
+                          filaSitio('palat_distal', 'Distal'),
+                          const SizedBox(height: 20),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 48,
+                            child: ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppTheme.rosaOscuro,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14)),
+                              ),
+                              onPressed: () {
+                                setState(() {});
+                                Navigator.pop(ctx);
+                              },
+                              icon: const Icon(Icons.check_rounded),
+                              label: const Text('Listo',
+                                  style: TextStyle(fontWeight: FontWeight.bold)),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -446,6 +579,90 @@ class _PeriodontogramaFormScreenState
     );
   }
 
+  String _nombreTipoDiente(TipoDiente t) {
+    switch (t) {
+      case TipoDiente.incisivo:
+        return 'Incisivo';
+      case TipoDiente.canino:
+        return 'Canino';
+      case TipoDiente.premolar:
+        return 'Premolar';
+      case TipoDiente.molar:
+        return 'Molar';
+    }
+  }
+
+  Widget _tituloSeccion(String texto, IconData icono) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Icon(icono, size: 15, color: AppTheme.rosaOscuro),
+          const SizedBox(width: 6),
+          Text(texto,
+              style: TextStyle(
+                  fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.rosaOscuro)),
+        ],
+      ),
+    );
+  }
+
+  Widget _pildoraGrado({required String texto, required bool activo, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 34,
+        height: 34,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: activo ? AppTheme.rosaOscuro : Colors.grey.shade100,
+          shape: BoxShape.circle,
+          border: Border.all(color: activo ? AppTheme.rosaOscuro : Colors.grey.shade300),
+        ),
+        child: Text(
+          texto,
+          style: TextStyle(
+            color: activo ? Colors.white : Colors.black54,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _botonToggle({
+    required bool activo,
+    required Color colorActivo,
+    required IconData icono,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 34,
+        height: 34,
+        decoration: BoxDecoration(
+          color: activo ? colorActivo.withValues(alpha: 0.12) : Colors.transparent,
+          shape: BoxShape.circle,
+        ),
+        alignment: Alignment.center,
+        child: AnimatedScale(
+          duration: const Duration(milliseconds: 200),
+          scale: activo ? 1.15 : 1,
+          child: Icon(icono, size: 18, color: activo ? colorActivo : Colors.black26),
+        ),
+      ),
+    );
+  }
+
   Widget _campoNumero({
     required int valor,
     required String etiqueta,
@@ -454,47 +671,70 @@ class _PeriodontogramaFormScreenState
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(etiqueta, style: const TextStyle(fontSize: 9, color: Colors.black45)),
-        SizedBox(
-          width: 46,
-          height: 34,
-          child: Row(
-            children: [
-              InkWell(
-                onTap: () {
-                  if (valor > 0) {
-                    onCambio(valor - 1);
-                  }
-                },
-                child: const Icon(Icons.remove, size: 14),
+        Text(etiqueta,
+            style: const TextStyle(fontSize: 8, color: Colors.black45, fontWeight: FontWeight.w600)),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _botonPasoMini(
+              icono: Icons.remove_rounded,
+              onTap: () {
+                if (valor > 0) onCambio(valor - 1);
+              },
+            ),
+            SizedBox(
+              width: 22,
+              child: Text(
+                '$valor',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
               ),
-              Expanded(
-                child: Text(
-                  '$valor',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              InkWell(
-                onTap: () {
-                  if (valor < 15) {
-                    onCambio(valor + 1);
-                  }
-                },
-                child: const Icon(Icons.add, size: 14),
-              ),
-            ],
-          ),
+            ),
+            _botonPasoMini(
+              icono: Icons.add_rounded,
+              onTap: () {
+                if (valor < 15) onCambio(valor + 1);
+              },
+            ),
+          ],
         ),
       ],
     );
   }
 
+  Widget _botonPasoMini({required IconData icono, required VoidCallback onTap}) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
+      child: Container(
+        width: 22,
+        height: 22,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Icon(icono, size: 12),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------
+  // BUILD
+  // ---------------------------------------------------------------------
+
   @override
   Widget build(BuildContext context) {
+    final examen = widget.examen;
+    final bolsas = examen.totalDientesConBolsaModerada + examen.totalDientesConBolsaSevera;
+
     return Scaffold(
       appBar: appBarConGradiente(
-        titulo: DateFormat('dd/MM/yyyy').format(widget.examen.fecha),
+        titulo: DateFormat('dd/MM/yyyy').format(examen.fecha),
         colores: const [AppTheme.lavanda, AppTheme.rosaOscuro],
         acciones: [
           IconButton(
@@ -509,17 +749,30 @@ class _PeriodontogramaFormScreenState
       ),
       body: MarcaAguaMuelaK(
         child: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.all(12),
-            children: [
-              Card(
-                color: Colors.white.withValues(alpha: 0.92),
-                shape:
-                    RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
+          child: FadeTransition(
+            opacity: _entrada,
+            child: ListView(
+              padding: const EdgeInsets.all(12),
+              children: [
+                // ---- Panel resumen tipo "dashboard" ----
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [AppTheme.lavanda, AppTheme.rosaOscuro],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.rosaOscuro.withValues(alpha: 0.35),
+                        blurRadius: 16,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Text(
                         widget.nombrePaciente,
@@ -527,68 +780,102 @@ class _PeriodontogramaFormScreenState
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
+                          color: Colors.white,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 2),
                       Text(
-                        'Sangrado: ${widget.examen.porcentajeSangrado.toStringAsFixed(0)}%  •  '
-                        'Placa: ${widget.examen.porcentajePlaca.toStringAsFixed(0)}%  •  '
-                        'Bolsas ≥4mm: ${widget.examen.totalDientesConBolsaModerada + widget.examen.totalDientesConBolsaSevera}',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: 12, color: Colors.black54),
+                        'Odontograma periodontal',
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 11),
+                      ),
+                      const SizedBox(height: 18),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          _Gauge(
+                            valor: examen.porcentajeSangrado,
+                            etiqueta: 'Sangrado',
+                            color: const Color(0xFFFF7A7A),
+                          ),
+                          _Gauge(
+                            valor: examen.porcentajePlaca,
+                            etiqueta: 'Placa',
+                            color: const Color(0xFF80DEEA),
+                          ),
+                          _GaugeEntero(
+                            valor: bolsas,
+                            etiqueta: 'Bolsas ≥4mm',
+                            color: const Color(0xFFFFD180),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              Card(
-                color: Colors.white.withValues(alpha: 0.92),
-                shape:
-                    RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                child: Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: Column(
-                    children: [
-                      _arcada('Arcada superior', dientesArcadaSuperior, esSuperior: true),
-                      const SizedBox(height: 22),
-                      _arcada('Arcada inferior', dientesArcadaInferior, esSuperior: false),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 14,
-                runSpacing: 6,
-                children: [
-                  _leyendaBarra(Colors.red.shade400, 'Profundidad de sondaje'),
-                  _leyendaLinea(Colors.blue.shade700, 'Margen gingival'),
-                  _leyendaLinea(Colors.red.shade600, 'Línea de referencia'),
-                  _leyendaPunto(Colors.red.shade700, 'Sangrado', circulo: true),
-                  _leyendaPunto(Colors.blueGrey.shade900, 'Placa', circulo: false),
-                  _leyenda(Colors.grey.shade300, 'Diente ausente'),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Card(
-                color: Colors.white.withValues(alpha: 0.92),
-                shape:
-                    RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: TextField(
-                    controller: _notasCtrl,
-                    maxLines: 3,
-                    decoration: const InputDecoration(
-                      labelText: 'Notas del examen',
-                      border: InputBorder.none,
+                const SizedBox(height: 14),
+                Card(
+                  elevation: 3,
+                  shadowColor: AppTheme.rosaOscuro.withValues(alpha: 0.2),
+                  color: Colors.white.withValues(alpha: 0.95),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: Column(
+                      children: [
+                        _arcada('Arcada superior', dientesArcadaSuperior, esSuperior: true),
+                        const SizedBox(height: 24),
+                        _arcada('Arcada inferior', dientesArcadaInferior, esSuperior: false),
+                      ],
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 40),
-            ],
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.92),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Wrap(
+                    spacing: 16,
+                    runSpacing: 8,
+                    children: [
+                      _leyendaBarra(const Color(0xFF43A047), '< 4mm sano'),
+                      _leyendaBarra(const Color(0xFFFB8C00), '4-5mm moderado'),
+                      _leyendaBarra(const Color(0xFFE53935), '≥6mm severo'),
+                      _leyendaLinea(Colors.blue.shade700, 'Margen gingival'),
+                      _leyendaPunto(Colors.red.shade700, 'Sangrado', circulo: true),
+                      _leyendaPunto(Colors.blueGrey.shade900, 'Placa', circulo: false),
+                      _leyenda(Colors.grey.shade300, 'Diente ausente'),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Card(
+                  elevation: 2,
+                  color: Colors.white.withValues(alpha: 0.95),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: TextField(
+                      controller: _notasCtrl,
+                      maxLines: 3,
+                      decoration: InputDecoration(
+                        labelText: 'Notas del examen',
+                        prefixIcon: const Icon(Icons.edit_note_rounded),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide.none,
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey.shade50,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 40),
+              ],
+            ),
           ),
         ),
       ),
@@ -614,7 +901,11 @@ class _PeriodontogramaFormScreenState
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(width: 10, height: 12, color: color),
+        Container(
+          width: 10,
+          height: 12,
+          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2)),
+        ),
         const SizedBox(width: 4),
         Text(texto, style: const TextStyle(fontSize: 11)),
       ],
@@ -651,15 +942,144 @@ class _PeriodontogramaFormScreenState
   }
 }
 
-/// Dibuja el gráfico clásico de periodontograma: barras rojas de profundidad
-/// de sondaje y una línea azul que traza el margen gingival, para una fila
-/// de 3 sitios por diente (vestibular o palatino/lingual).
+// ---------------------------------------------------------------------
+// GAUGE ANIMADO — anillo circular de progreso con porcentaje al centro
+// ---------------------------------------------------------------------
+
+class _Gauge extends StatelessWidget {
+  final double valor; // 0-100
+  final String etiqueta;
+  final Color color;
+  const _Gauge({
+    required this.valor,
+    required this.etiqueta,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0, end: valor.clamp(0, 100)),
+          duration: const Duration(milliseconds: 1100),
+          curve: Curves.easeOutCubic,
+          builder: (context, v, child) {
+            return SizedBox(
+              width: 62,
+              height: 62,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  CustomPaint(
+                    size: const Size(62, 62),
+                    painter: _AroPainter(porcentaje: v, color: color),
+                  ),
+                  Text('${v.toStringAsFixed(0)}%',
+                      style: const TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                ],
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 6),
+        Text(etiqueta,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 10)),
+      ],
+    );
+  }
+}
+
+class _GaugeEntero extends StatelessWidget {
+  final int valor;
+  final String etiqueta;
+  final Color color;
+  const _GaugeEntero({
+    required this.valor,
+    required this.etiqueta,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        TweenAnimationBuilder<int>(
+          tween: IntTween(begin: 0, end: valor),
+          duration: const Duration(milliseconds: 900),
+          builder: (context, v, child) {
+            return Container(
+              width: 62,
+              height: 62,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: color.withValues(alpha: 0.18),
+                border: Border.all(color: color, width: 2.4),
+              ),
+              alignment: Alignment.center,
+              child: Text('$v',
+                  style: const TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+            );
+          },
+        ),
+        const SizedBox(height: 6),
+        Text(etiqueta,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 10)),
+      ],
+    );
+  }
+}
+
+class _AroPainter extends CustomPainter {
+  final double porcentaje; // 0-100
+  final Color color;
+  _AroPainter({required this.porcentaje, required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final centro = Offset(size.width / 2, size.height / 2);
+    final radio = size.width / 2 - 4;
+    final fondo = Paint()
+      ..color = Colors.white.withValues(alpha: 0.25)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 5
+      ..strokeCap = StrokeCap.round;
+    final frente = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 5
+      ..strokeCap = StrokeCap.round;
+    canvas.drawCircle(centro, radio, fondo);
+    final barrido = 2 * math.pi * (porcentaje / 100);
+    canvas.drawArc(
+      Rect.fromCircle(center: centro, radius: radio),
+      -math.pi / 2,
+      barrido,
+      false,
+      frente,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _AroPainter oldDelegate) =>
+      oldDelegate.porcentaje != porcentaje || oldDelegate.color != color;
+}
+
+// ---------------------------------------------------------------------
+// GRÁFICO PERIODONTAL — barras con color por severidad + línea de encía
+// ---------------------------------------------------------------------
+
 class _GraficoPeriodontalPainter extends CustomPainter {
   final List<DienteRegistro> dientes;
   final List<String> clavesSitio;
   final double anchoColumna;
   final double escalaPxPorMm;
   final bool crecerHaciaArriba;
+  final Color Function(int pd, bool ausente) colorParaProfundidad;
 
   _GraficoPeriodontalPainter({
     required this.dientes,
@@ -667,6 +1087,7 @@ class _GraficoPeriodontalPainter extends CustomPainter {
     required this.anchoColumna,
     required this.escalaPxPorMm,
     required this.crecerHaciaArriba,
+    required this.colorParaProfundidad,
   });
 
   @override
@@ -680,13 +1101,13 @@ class _GraficoPeriodontalPainter extends CustomPainter {
     final paintLineaBase = Paint()
       ..color = Colors.red.shade600
       ..strokeWidth = 1.4;
-    final paintBarra = Paint()..color = Colors.red.shade400;
     final paintLineaEncia = Paint()
       ..color = Colors.blue.shade700
-      ..strokeWidth = 1.6
-      ..style = PaintingStyle.stroke;
+      ..strokeWidth = 1.8
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
     final paintPuntoEncia = Paint()..color = Colors.blue.shade700;
-    final paintAusente = Paint()..color = Colors.grey.shade200;
+    final paintAusente = Paint()..color = Colors.grey.shade100;
 
     final baseY = crecerHaciaArriba ? size.height : 0.0;
 
@@ -714,12 +1135,7 @@ class _GraficoPeriodontalPainter extends CustomPainter {
 
       if (diente.ausente) {
         canvas.drawRect(
-          Rect.fromLTWH(
-            xInicioDiente,
-            0,
-            clavesSitio.length * anchoColumna,
-            size.height,
-          ),
+          Rect.fromLTWH(xInicioDiente, 0, clavesSitio.length * anchoColumna, size.height),
           paintAusente,
         );
         for (int s = 0; s < clavesSitio.length; s++) {
@@ -735,16 +1151,25 @@ class _GraficoPeriodontalPainter extends CustomPainter {
         final x = xInicioDiente + s * anchoColumna + anchoColumna / 2;
 
         final yMargen = yPara(sitio.recesion.toDouble());
-        final yFondo =
-            yPara((sitio.recesion + sitio.profundidadSondaje).toDouble());
+        final yFondo = yPara((sitio.recesion + sitio.profundidadSondaje).toDouble());
 
         final rectBarra = Rect.fromLTRB(
-          x - anchoColumna * 0.28,
+          x - anchoColumna * 0.3,
           crecerHaciaArriba ? yFondo : yMargen,
-          x + anchoColumna * 0.28,
+          x + anchoColumna * 0.3,
           crecerHaciaArriba ? yMargen : yFondo,
         );
-        canvas.drawRect(rectBarra, paintBarra);
+        final colorBarra = colorParaProfundidad(sitio.profundidadSondaje, false);
+        final paintBarra = Paint()
+          ..shader = LinearGradient(
+            colors: [colorBarra.withValues(alpha: 0.65), colorBarra],
+            begin: crecerHaciaArriba ? Alignment.bottomCenter : Alignment.topCenter,
+            end: crecerHaciaArriba ? Alignment.topCenter : Alignment.bottomCenter,
+          ).createShader(rectBarra);
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(rectBarra, const Radius.circular(2)),
+          paintBarra,
+        );
 
         puntosEncia.add(Offset(x, yMargen));
       }
@@ -758,6 +1183,7 @@ class _GraficoPeriodontalPainter extends CustomPainter {
       canvas.drawPath(path, paintLineaEncia);
     }
     for (final p in puntosEncia) {
+      canvas.drawCircle(p, 2, Paint()..color = Colors.white);
       canvas.drawCircle(p, 1.6, paintPuntoEncia);
     }
 

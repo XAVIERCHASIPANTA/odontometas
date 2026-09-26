@@ -2,6 +2,8 @@ import 'tratamiento.dart';
 import 'periodontograma.dart';
 import 'campo_adicional.dart';
 import 'evaluacion_riesgo.dart';
+import 'odontograma.dart';
+import 'presupuesto.dart';
 
 class Paciente {
   String nombre;
@@ -15,6 +17,8 @@ class Paciente {
   List<Periodontograma> periodontogramas;
   List<CampoAdicional> camposAdicionales;
   List<EvaluacionRiesgo> evaluacionesRiesgo;
+  List<Odontograma> odontogramas;
+  Presupuesto? presupuesto;
 
   Paciente({
     this.nombre = '',
@@ -28,11 +32,14 @@ class Paciente {
     List<Periodontograma>? periodontogramas,
     List<CampoAdicional>? camposAdicionales,
     List<EvaluacionRiesgo>? evaluacionesRiesgo,
+    List<Odontograma>? odontogramas,
+    this.presupuesto,
   })  : tratamientos = tratamientos ?? [],
         adjuntos = adjuntos ?? [],
         periodontogramas = periodontogramas ?? [],
         camposAdicionales = camposAdicionales ?? [],
-        evaluacionesRiesgo = evaluacionesRiesgo ?? [];
+        evaluacionesRiesgo = evaluacionesRiesgo ?? [],
+        odontogramas = odontogramas ?? [];
 
   bool get tieneInfo => nombre.trim().isNotEmpty;
 
@@ -49,6 +56,8 @@ class Paciente {
       'periodontogramas': periodontogramas.map((p) => p.toMap()).toList(),
       'camposAdicionales': camposAdicionales.map((c) => c.toMap()).toList(),
       'evaluacionesRiesgo': evaluacionesRiesgo.map((r) => r.toMap()).toList(),
+      'odontogramas': odontogramas.map((o) => o.toMap()).toList(),
+      'presupuesto': presupuesto?.toMap(),
     };
   }
 
@@ -58,6 +67,7 @@ class Paciente {
     final rawPeriodontogramas = (map['periodontogramas'] as List?) ?? [];
     final rawCampos = (map['camposAdicionales'] as List?) ?? [];
     final rawEvaluaciones = (map['evaluacionesRiesgo'] as List?) ?? [];
+    final rawOdontogramas = (map['odontogramas'] as List?) ?? [];
     return Paciente(
       nombre: map['nombre'] ?? '',
       cedula: map['cedula'] ?? '',
@@ -81,6 +91,12 @@ class Paciente {
           .map((r) =>
               EvaluacionRiesgo.fromMap(Map<String, dynamic>.from(r as Map)))
           .toList(),
+      odontogramas: rawOdontogramas
+          .map((o) => Odontograma.fromMap(Map<String, dynamic>.from(o as Map)))
+          .toList(),
+      presupuesto: map['presupuesto'] != null
+          ? Presupuesto.fromMap(Map<String, dynamic>.from(map['presupuesto']))
+          : null,
     );
   }
 }
