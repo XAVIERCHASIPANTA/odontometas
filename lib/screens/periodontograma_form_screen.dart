@@ -323,11 +323,14 @@ class _PeriodontogramaFormScreenState extends State<PeriodontogramaFormScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  for (int i = 0; i < numeros.length; i++)
-                    _iconoDiente(numeros[i], esSuperior: esSuperior, indice: i),
-                ],
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 22),
+                child: Row(
+                  children: [
+                    for (int i = 0; i < numeros.length; i++)
+                      _iconoDiente(numeros[i], esSuperior: esSuperior, indice: i),
+                  ],
+                ),
               ),
               const SizedBox(height: 4),
               _tituloFila('MOVILIDAD'),
@@ -359,7 +362,7 @@ class _PeriodontogramaFormScreenState extends State<PeriodontogramaFormScreen>
               _filaNumeros(dientes, clavesArriba, (s) => s.nivelInsercionClinica),
               _filaIndicadores(dientes, clavesArriba),
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 5),
+                padding: const EdgeInsets.symmetric(vertical: 22),
                 child: Row(children: numeros.map(_chipNumeroDiente).toList()),
               ),
               _filaIndicadores(dientes, clavesAbajo),

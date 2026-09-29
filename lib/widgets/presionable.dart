@@ -3,13 +3,17 @@ import 'package:flutter/services.dart';
 
 /// Envuelve cualquier widget para darle retroalimentación táctil "de lujo":
 /// al tocarlo, vibra e infla el elemento (crece al doble) y luego se
-/// encoge de vuelta a su tamaño normal, garantizado siempre.
+/// encoge de vuelta a su tamaño normal, garantizado siempre — a diferencia
+/// de animar solo mientras el dedo está presionado (que en toques muy
+/// rápidos puede no alcanzar a dibujarse ni un solo cuadro), aquí la
+/// animación se dispara con [AnimationController.forward] al soltar, así
+/// que siempre se completa.
 ///
-/// La copia que se infla se dibuja en el [Overlay] de la app — es decir,
-/// literalmente por ENCIMA de todo lo demás en la pantalla — para que
-/// pueda crecer libremente sin que ninguna fila, tarjeta o texto vecino
-/// la tape ni la corte. El widget original se oculta mientras dura la
-/// animación y vuelve a aparecer al terminar.
+/// IMPORTANTE: este widget crece "en su lugar" (no usa Overlay ni
+/// coordenadas globales), así que es idéntico en Android, iOS y Web. Para
+/// que el crecimiento no quede tapado por filas vecinas, quien use este
+/// widget debe dejarle un margen vertical/horizontal de sobra alrededor
+/// (ver el uso en las pantallas de odontograma/periodontograma).
 class Presionable extends StatefulWidget {
   final Widget child;
   final VoidCallback onTap;
@@ -32,8 +36,6 @@ class Presionable extends StatefulWidget {
 class _PresionableState extends State<Presionable> with SingleTickerProviderStateMixin {
   late final AnimationController _controlador;
   late final Animation<double> _escala;
-  OverlayEntry? _overlayEntry;
-  bool _ocultandoOriginal = false;
 
   static const Duration _duracionTotal = Duration(milliseconds: 780);
 
@@ -63,68 +65,19 @@ class _PresionableState extends State<Presionable> with SingleTickerProviderStat
 
   @override
   void dispose() {
-    _overlayEntry?.remove();
     _controlador.dispose();
     super.dispose();
   }
 
   void _alTocar() {
+    // Se dispara SIEMPRE al levantar el dedo, sin importar qué tan rápido
+    // fue el toque — por eso la animación no se pierde en toques rápidos.
     HapticFeedback.mediumImpact();
     HapticFeedback.vibrate();
-
-    final cajaRender = context.findRenderObject() as RenderBox?;
-    final overlayState = Overlay.maybeOf(context);
-
-    if (cajaRender == null || !cajaRender.attached || overlayState == null) {
-      // No hay forma segura de medir la posición o no hay Overlay
-      // disponible: seguimos directo a la pantalla de edición, sin
-      // animación, para no dejar la app sin reaccionar al toque.
-      widget.onTap();
-      return;
-    }
-
-    final posicion = cajaRender.localToGlobal(Offset.zero);
-    final tamano = cajaRender.size;
-
-    late final OverlayEntry entrada;
-    entrada = OverlayEntry(
-      builder: (context) {
-        return AnimatedBuilder(
-          animation: _escala,
-          builder: (context, _) {
-            return Positioned(
-              left: posicion.dx,
-              top: posicion.dy,
-              width: tamano.width,
-              height: tamano.height,
-              child: IgnorePointer(
-                child: Transform.scale(
-                  scale: _escala.value,
-                  child: Material(
-                    type: MaterialType.transparency,
-                    child: widget.child,
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-
-    setState(() => _ocultandoOriginal = true);
-    _overlayEntry = entrada;
-    overlayState.insert(entrada);
-
-    _controlador.forward(from: 0).whenComplete(() {
-      entrada.remove();
-      _overlayEntry = null;
-      if (mounted) setState(() => _ocultandoOriginal = false);
-    });
-
-    // Espera a que el rebote termine ANTES de abrir la pantalla de edición
-    // — si navegamos de inmediato, la hoja que sube tapa el diente y el
-    // rebote nunca se alcanza a ver completo.
+    _controlador.forward(from: 0);
+    // Espera a que el rebote sea bien visible ANTES de abrir la pantalla de
+    // edición — si navegamos de inmediato, la hoja que sube tapa el diente
+    // y el rebote nunca se alcanza a ver.
     Future.delayed(_duracionTotal, () {
       if (mounted) widget.onTap();
     });
@@ -135,8 +88,9 @@ class _PresionableState extends State<Presionable> with SingleTickerProviderStat
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: _alTocar,
-      child: Opacity(
-        opacity: _ocultandoOriginal ? 0 : 1,
+      child: AnimatedBuilder(
+        animation: _escala,
+        builder: (context, child) => Transform.scale(scale: _escala.value, child: child),
         child: widget.child,
       ),
     );

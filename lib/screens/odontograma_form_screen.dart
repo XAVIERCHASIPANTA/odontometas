@@ -181,13 +181,22 @@ class _OdontogramaFormScreenState extends State<OdontogramaFormScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (esSuperior)
-                Row(children: numeros.map((n) => _chipNumeroDiente(n)).toList()),
-              Row(children: [
-                for (int i = 0; i < numeros.length; i++)
-                  _iconoDiente(numeros[i], esSuperior: esSuperior, indice: i),
-              ]),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 22),
+                  child: Row(children: numeros.map((n) => _chipNumeroDiente(n)).toList()),
+                ),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 22),
+                child: Row(children: [
+                  for (int i = 0; i < numeros.length; i++)
+                    _iconoDiente(numeros[i], esSuperior: esSuperior, indice: i),
+                ]),
+              ),
               if (!esSuperior)
-                Row(children: numeros.map((n) => _chipNumeroDiente(n)).toList()),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 22),
+                  child: Row(children: numeros.map((n) => _chipNumeroDiente(n)).toList()),
+                ),
             ],
           ),
         ),
