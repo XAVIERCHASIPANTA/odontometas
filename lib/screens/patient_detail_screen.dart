@@ -5,9 +5,11 @@ import 'package:file_picker/file_picker.dart';
 import 'package:open_file/open_file.dart';
 import '../models/meta_goal.dart';
 import '../models/paciente.dart';
+import '../models/presupuesto.dart';
 import '../models/tratamiento.dart';
 import '../models/campo_adicional.dart';
 import '../services/config_service.dart';
+import '../services/storage_service.dart';
 import '../services/notification_service.dart';
 import '../services/whatsapp_service.dart';
 import '../services/adjuntos_service.dart';
@@ -57,6 +59,35 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
         _nombreDoctor = nombre;
       });
     }
+  }
+
+  /// Respalda de inmediato el estado actual de la meta (y con ella el de
+  /// este paciente). Se usa desde el presupuesto para que los pagos queden
+  /// guardados en cuanto se registran.
+  Future<void> _guardarAhora() async {
+    final todas = await StorageService.cargarMetas();
+    final idx = todas.indexWhere((m) => m.id == meta.id);
+    if (idx >= 0) {
+      todas[idx] = meta;
+    } else {
+      todas.add(meta);
+    }
+    await StorageService.guardarMetas(todas);
+  }
+
+  String _resumenPresupuesto() {
+    final p = paciente.presupuesto;
+    if (p == null || p.items.isEmpty) {
+      return 'Sin presupuesto creado';
+    }
+    final total = 'Total ${formatoMoneda(p.total)}';
+    if (p.total > 0 && p.saldo <= 0.004) {
+      return '$total  ·  Pagado por completo';
+    }
+    if (p.pagosVigentes.isEmpty) {
+      return total;
+    }
+    return '$total  ·  Saldo ${formatoMoneda(p.saldo)}';
   }
 
   String _formatearFecha(DateTime f) {
@@ -829,17 +860,16 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                   'Presupuesto',
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
-                subtitle: Text(
-                  paciente.presupuesto == null || paciente.presupuesto!.items.isEmpty
-                      ? 'Sin presupuesto creado'
-                      : 'Total: \$${paciente.presupuesto!.total.toStringAsFixed(2)}',
-                ),
+                subtitle: Text(_resumenPresupuesto()),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () async {
                   await Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => PresupuestoScreen(paciente: paciente),
+                      builder: (_) => PresupuestoScreen(
+                        paciente: paciente,
+                        onGuardar: _guardarAhora,
+                      ),
                     ),
                   );
                   setState(() {});

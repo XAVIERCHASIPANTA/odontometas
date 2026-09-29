@@ -69,6 +69,10 @@ class PdfExportService {
     );
   }
 
+  /// Tema de página con la marca de agua de la app, para que otros PDF
+  /// (presupuesto, recibos) mantengan el mismo sello de autoría.
+  static pw.PageTheme temaMarcaAgua() => _temaConMarcaAgua();
+
   static Future<void> exportarCalendario(List<MetaGoal> metas) async {
     final pdf = pw.Document();
     final List<Map<String, dynamic>> citas = [];
