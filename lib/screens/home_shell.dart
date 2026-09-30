@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'metas_list_screen.dart';
 import 'calendar_screen.dart';
+import 'caja_screen.dart';
 
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
@@ -15,7 +16,13 @@ class _HomeShellState extends State<HomeShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _indice == 0 ? const MetasListScreen() : const CalendarScreen(),
+      // La pantalla se recrea al cambiar de pestaña, así la Caja siempre
+      // muestra los datos más recientes.
+      body: switch (_indice) {
+        0 => const MetasListScreen(),
+        1 => const CalendarScreen(),
+        _ => const CajaScreen(),
+      },
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _indice,
         onTap: (i) => setState(() => _indice = i),
@@ -29,6 +36,11 @@ class _HomeShellState extends State<HomeShell> {
             icon: Icon(Icons.calendar_month_outlined),
             activeIcon: Icon(Icons.calendar_month),
             label: 'Calendario',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.savings_outlined),
+            activeIcon: Icon(Icons.savings),
+            label: 'Caja',
           ),
         ],
       ),

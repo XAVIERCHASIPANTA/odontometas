@@ -4,6 +4,7 @@ import 'campo_adicional.dart';
 import 'evaluacion_riesgo.dart';
 import 'odontograma.dart';
 import 'presupuesto.dart';
+import 'ficha_clinica.dart';
 
 class Paciente {
   String nombre;
@@ -19,6 +20,7 @@ class Paciente {
   List<EvaluacionRiesgo> evaluacionesRiesgo;
   List<Odontograma> odontogramas;
   Presupuesto? presupuesto;
+  FichaClinica? ficha;
 
   Paciente({
     this.nombre = '',
@@ -34,6 +36,7 @@ class Paciente {
     List<EvaluacionRiesgo>? evaluacionesRiesgo,
     List<Odontograma>? odontogramas,
     this.presupuesto,
+    this.ficha,
   })  : tratamientos = tratamientos ?? [],
         adjuntos = adjuntos ?? [],
         periodontogramas = periodontogramas ?? [],
@@ -58,6 +61,7 @@ class Paciente {
       'evaluacionesRiesgo': evaluacionesRiesgo.map((r) => r.toMap()).toList(),
       'odontogramas': odontogramas.map((o) => o.toMap()).toList(),
       'presupuesto': presupuesto?.toMap(),
+      'ficha': ficha?.toMap(),
     };
   }
 
@@ -96,6 +100,9 @@ class Paciente {
           .toList(),
       presupuesto: map['presupuesto'] != null
           ? Presupuesto.fromMap(Map<String, dynamic>.from(map['presupuesto']))
+          : null,
+      ficha: map['ficha'] != null
+          ? FichaClinica.fromMap(Map<String, dynamic>.from(map['ficha']))
           : null,
     );
   }

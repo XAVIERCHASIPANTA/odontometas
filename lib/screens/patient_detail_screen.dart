@@ -20,6 +20,7 @@ import 'periodontograma_list_screen.dart';
 import 'evaluacion_riesgo_list_screen.dart';
 import 'odontograma_list_screen.dart';
 import 'presupuesto_screen.dart';
+import 'ficha_clinica_screen.dart';
 
 class PatientDetailScreen extends StatefulWidget {
   final MetaGoal meta;
@@ -73,6 +74,24 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
       todas.add(meta);
     }
     await StorageService.guardarMetas(todas);
+  }
+
+  String _resumenFicha() {
+    final f = paciente.ficha;
+    if (f == null) {
+      return 'Historia médica, evolución, recetas y consentimientos';
+    }
+    final partes = <String>[
+      if (f.alergias.isNotEmpty)
+        '⚠ ${f.alergias.length} alergia${f.alergias.length == 1 ? '' : 's'}',
+      if (f.evoluciones.isNotEmpty)
+        '${f.evoluciones.length} evolución${f.evoluciones.length == 1 ? '' : 'es'}',
+      if (f.recetas.isNotEmpty)
+        '${f.recetas.length} receta${f.recetas.length == 1 ? '' : 's'}',
+      if (f.consentimientos.isNotEmpty)
+        '${f.consentimientos.length} consentimiento${f.consentimientos.length == 1 ? '' : 's'}',
+    ];
+    return partes.isEmpty ? 'Historia médica sin completar' : partes.join('  ·  ');
   }
 
   String _resumenPresupuesto() {
@@ -799,6 +818,31 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
               ),
             ),
             const SizedBox(height: 20),
+            Card(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              child: ListTile(
+                leading: Icon(Icons.folder_shared_outlined, color: colorPar.fuerte),
+                title: const Text(
+                  'Ficha clínica',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text(_resumenFicha()),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => FichaClinicaScreen(
+                        paciente: paciente,
+                        onGuardar: _guardarAhora,
+                      ),
+                    ),
+                  );
+                  setState(() {});
+                },
+              ),
+            ),
+            const SizedBox(height: 12),
             Card(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               child: ListTile(
