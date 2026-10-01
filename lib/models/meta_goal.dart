@@ -41,12 +41,22 @@ class MetaGoal {
 
   factory MetaGoal.fromMap(Map<String, dynamic> map) {
     final rawList = (map['pacientes'] as List?) ?? [];
-    final lista = rawList.map<Paciente?>((e) {
+    final lista = <Paciente?>[];
+    for (var i = 0; i < rawList.length; i++) {
+      final e = rawList[i];
       if (e == null) {
-        return null;
+        lista.add(null);
+        continue;
       }
-      return Paciente.fromMap(Map<String, dynamic>.from(e as Map));
-    }).toList();
+      final m = Map<String, dynamic>.from(e as Map);
+      // Los pacientes guardados antes de existir el id reciben uno
+      // DETERMINISTA (meta + posición): así es idéntico en cada carga y en
+      // cada dispositivo hasta que se guarde.
+      if ((m['id'] ?? '').toString().isEmpty) {
+        m['id'] = '${map['id']}_p$i';
+      }
+      lista.add(Paciente.fromMap(m));
+    }
     int meta = map['metaNumero'] ?? lista.length;
     if (lista.length < meta) {
       lista.addAll(List<Paciente?>.generate(meta - lista.length, (_) => null));

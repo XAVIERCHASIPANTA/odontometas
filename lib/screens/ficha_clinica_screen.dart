@@ -9,6 +9,7 @@ import '../models/presupuesto.dart';
 import '../services/config_service.dart';
 import '../services/ficha_pdf_service.dart';
 import '../services/whatsapp_service.dart';
+import '../widgets/ayuda.dart';
 import '../widgets/ficha_sheets.dart';
 import '../widgets/firma_pad.dart';
 import '../widgets/fondo_decorativo.dart';
@@ -66,10 +67,24 @@ class _FichaClinicaScreenState extends State<FichaClinicaScreen>
     _tab.addListener(() {
       if (mounted) {
         setState(() {});
+        if (!_tab.indexIsChanging) {
+          unawaited(ayudaPrimeraVez(context, _temaAyuda));
+        }
       }
     });
     _cargarDoctor();
+    programarAyudaPrimeraVez(this, _temaAyuda);
   }
+
+  static const List<String> _temasAyuda = [
+    'ficha_resumen',
+    'ficha_historia',
+    'ficha_evolucion',
+    'ficha_recetas',
+    'ficha_consentimientos',
+  ];
+
+  String get _temaAyuda => _temasAyuda[_tab.index];
 
   @override
   void dispose() {
@@ -594,6 +609,7 @@ class _FichaClinicaScreenState extends State<FichaClinicaScreen>
           ),
         ),
         actions: [
+          BotonAyuda(tema: _temaAyuda),
           IconButton(
             tooltip: 'Historia clínica en PDF',
             icon: const Icon(Icons.picture_as_pdf_outlined),

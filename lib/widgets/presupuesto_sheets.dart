@@ -6,6 +6,7 @@ import '../models/odontograma.dart';
 import '../models/pago.dart';
 import '../models/presupuesto.dart';
 import '../theme/app_theme.dart';
+import 'ayuda.dart';
 
 /// Convierte "25", "25.5" o "25,50" en número. Devuelve null si no es válido.
 double? parsearMonto(String texto) {
@@ -28,10 +29,12 @@ class _MarcoHoja extends StatelessWidget {
   final String titulo;
   final IconData icono;
   final Widget child;
+  final String? ayuda;
   const _MarcoHoja({
     required this.titulo,
     required this.icono,
     required this.child,
+    this.ayuda,
   });
 
   @override
@@ -61,6 +64,12 @@ class _MarcoHoja extends StatelessWidget {
                         ),
                       ),
                     ),
+                    if (ayuda != null)
+                      IconButton(
+                        tooltip: 'Ayuda: cómo funciona',
+                        icon: Icon(Icons.help_outline, color: AppTheme.rosaOscuro),
+                        onPressed: () => mostrarAyuda(context, ayuda!),
+                      ),
                     IconButton(
                       icon: const Icon(Icons.close),
                       onPressed: () => Navigator.pop(context),
@@ -189,6 +198,7 @@ class _HojaItemState extends State<_HojaItem> {
   @override
   Widget build(BuildContext context) {
     return _MarcoHoja(
+      ayuda: 'sheet_item',
       titulo: _editando ? 'Editar tratamiento' : 'Agregar tratamiento',
       icono: Icons.medical_services_outlined,
       child: Column(
@@ -450,6 +460,7 @@ class _HojaPagoState extends State<_HojaPago> {
   Widget build(BuildContext context) {
     final saldo = widget.saldo;
     return _MarcoHoja(
+      ayuda: 'sheet_pago',
       titulo: 'Registrar pago  ·  Recibo N° ${widget.numeroRecibo.toString().padLeft(4, '0')}',
       icono: Icons.payments_outlined,
       child: Column(
@@ -665,6 +676,7 @@ class _HojaAjustesState extends State<_HojaAjustes> {
   @override
   Widget build(BuildContext context) {
     return _MarcoHoja(
+      ayuda: 'sheet_ajustes',
       titulo: 'Ajustes del presupuesto',
       icono: Icons.tune,
       child: Column(
@@ -797,6 +809,7 @@ class _HojaPreciosState extends State<_HojaPrecios> {
   @override
   Widget build(BuildContext context) {
     return _MarcoHoja(
+      ayuda: 'sheet_precios',
       titulo: 'Precios por hallazgo',
       icono: Icons.sell_outlined,
       child: Column(
@@ -914,6 +927,7 @@ class _HojaHallazgosState extends State<_HojaHallazgos> {
   Widget build(BuildContext context) {
     final todos = _seleccion.length == widget.candidatos.length;
     return _MarcoHoja(
+      ayuda: 'sheet_hallazgos',
       titulo: 'Hallazgos del odontograma',
       icono: Icons.grid_view,
       child: Column(

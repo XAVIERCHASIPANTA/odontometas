@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/ficha_clinica.dart';
+import 'ayuda.dart';
 
 /// Resultado de firmar en pantalla: trazos ya codificados y tamaño del
 /// lienzo (para poder redibujar la firma en cualquier tamaño).
@@ -84,6 +85,7 @@ class _FirmaPadPantallaState extends State<FirmaPadPantalla> {
         ),
         foregroundColor: Colors.white,
         actions: [
+          const BotonAyuda(tema: 'firma'),
           IconButton(
             tooltip: 'Deshacer último trazo',
             onPressed: vacio ? null : _deshacer,

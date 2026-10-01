@@ -1,3 +1,4 @@
+import 'package:uuid/uuid.dart';
 import 'tratamiento.dart';
 import 'periodontograma.dart';
 import 'campo_adicional.dart';
@@ -7,6 +8,9 @@ import 'presupuesto.dart';
 import 'ficha_clinica.dart';
 
 class Paciente {
+  /// Identificador estable: en la nube cada paciente es su propio documento
+  /// y este id es el nombre de ese documento.
+  String id;
   String nombre;
   String cedula;
   String celular;
@@ -23,6 +27,7 @@ class Paciente {
   FichaClinica? ficha;
 
   Paciente({
+    String? id,
     this.nombre = '',
     this.cedula = '',
     this.celular = '',
@@ -37,7 +42,8 @@ class Paciente {
     List<Odontograma>? odontogramas,
     this.presupuesto,
     this.ficha,
-  })  : tratamientos = tratamientos ?? [],
+  })  : id = (id == null || id.isEmpty) ? const Uuid().v4() : id,
+        tratamientos = tratamientos ?? [],
         adjuntos = adjuntos ?? [],
         periodontogramas = periodontogramas ?? [],
         camposAdicionales = camposAdicionales ?? [],
@@ -48,6 +54,7 @@ class Paciente {
 
   Map<String, dynamic> toMap() {
     return {
+      'id': id,
       'nombre': nombre,
       'cedula': cedula,
       'celular': celular,
@@ -73,6 +80,7 @@ class Paciente {
     final rawEvaluaciones = (map['evaluacionesRiesgo'] as List?) ?? [];
     final rawOdontogramas = (map['odontogramas'] as List?) ?? [];
     return Paciente(
+      id: map['id']?.toString(),
       nombre: map['nombre'] ?? '',
       cedula: map['cedula'] ?? '',
       celular: map['celular'] ?? '',

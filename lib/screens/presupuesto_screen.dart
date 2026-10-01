@@ -11,6 +11,7 @@ import '../services/presupuesto_pdf_service.dart';
 import '../services/whatsapp_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/fondo_decorativo.dart';
+import '../widgets/ayuda.dart';
 import '../widgets/presupuesto_sheets.dart';
 
 /// Presupuesto (plan de tratamiento) y cobros del paciente.
@@ -45,10 +46,14 @@ class _PresupuestoScreenState extends State<PresupuestoScreen>
     _tab.addListener(() {
       if (!_tab.indexIsChanging) {
         setState(() {});
+        unawaited(ayudaPrimeraVez(context, _temaAyuda));
       }
     });
     _cargarDoctor();
+    programarAyudaPrimeraVez(this, 'presupuesto');
   }
+
+  String get _temaAyuda => _tab.index == 1 ? 'pagos' : 'presupuesto';
 
   @override
   void dispose() {
@@ -436,6 +441,7 @@ class _PresupuestoScreenState extends State<PresupuestoScreen>
         titulo: 'Presupuesto — ${widget.paciente.nombre}',
         colores: const [AppTheme.rosaPrincipal, AppTheme.lavanda],
         acciones: [
+          BotonAyuda(tema: _temaAyuda),
           IconButton(
             icon: const Icon(Icons.picture_as_pdf_outlined),
             tooltip: 'Imprimir / compartir PDF',

@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import '../models/ficha_clinica.dart';
 import '../models/paciente.dart';
 import '../models/presupuesto.dart';
+import 'ayuda.dart';
 import 'firma_pad.dart';
 
 // ---------------------------------------------------------------------------
@@ -81,11 +82,13 @@ class _Marco extends StatelessWidget {
   final PaletaFicha paleta;
   final IconData? icono;
   final Widget child;
+  final String? ayuda;
   const _Marco({
     required this.titulo,
     required this.paleta,
     required this.child,
     this.icono,
+    this.ayuda,
   });
 
   @override
@@ -122,6 +125,12 @@ class _Marco extends StatelessWidget {
                           ),
                         ),
                       ),
+                      if (ayuda != null)
+                        IconButton(
+                          tooltip: 'Ayuda: cómo funciona',
+                          icon: const Icon(Icons.help_outline, color: Colors.white),
+                          onPressed: () => mostrarAyuda(context, ayuda!),
+                        ),
                       IconButton(
                         icon: const Icon(Icons.close, color: Colors.white),
                         onPressed: () => Navigator.pop(context),
@@ -385,6 +394,7 @@ class _HojaDatosState extends State<_HojaDatos> {
     const p = paletaResumen;
     final edad = _edad;
     return _Marco(
+      ayuda: 'sheet_datos',
       titulo: 'Datos del paciente',
       paleta: p,
       icono: Icons.badge_outlined,
@@ -524,6 +534,7 @@ class _HojaCondicionesState extends State<_HojaCondiciones> {
   Widget build(BuildContext context) {
     const p = paletaMedica;
     return _Marco(
+      ayuda: 'sheet_condiciones',
       titulo: 'Condiciones y antecedentes',
       paleta: p,
       icono: Icons.health_and_safety_outlined,
@@ -683,6 +694,7 @@ class _HojaAlergiaState extends State<_HojaAlergia> {
       SeveridadAlergia.grave: Colors.red.shade700,
     };
     return _Marco(
+      ayuda: 'sheet_alergia',
       titulo: editando ? 'Editar alergia' : 'Agregar alergia',
       paleta: p,
       icono: Icons.warning_amber_rounded,
@@ -825,6 +837,7 @@ class _HojaMedicamentoActualState extends State<_HojaMedicamentoActual> {
     const p = paletaMedica;
     final editando = widget.existente != null;
     return _Marco(
+      ayuda: 'sheet_medicamento',
       titulo: editando ? 'Editar medicamento' : 'Medicación actual',
       paleta: p,
       icono: Icons.medication_liquid_outlined,
@@ -961,6 +974,7 @@ class _HojaHabitosState extends State<_HojaHabitos> {
   Widget build(BuildContext context) {
     const p = paletaEvolucion;
     return _Marco(
+      ayuda: 'sheet_habitos',
       titulo: 'Hábitos y salud bucal',
       paleta: p,
       icono: Icons.sentiment_satisfied_alt_outlined,
@@ -1218,6 +1232,7 @@ class _HojaEvolucionState extends State<_HojaEvolucion> {
     final editando = widget.existente != null;
     final items = _itemsDisponibles;
     return _Marco(
+      ayuda: 'sheet_evolucion',
       titulo: editando ? 'Editar evolución' : 'Nueva evolución',
       paleta: p,
       icono: Icons.edit_note,
@@ -1621,6 +1636,7 @@ class _HojaRecetaState extends State<_HojaReceta> {
     final editando = widget.existente != null;
     final alergias = widget.ficha.alergiasOrdenadas;
     return _Marco(
+      ayuda: 'sheet_receta',
       titulo: editando
           ? 'Editar receta N° ${widget.existente!.numeroTexto}'
           : 'Nueva receta N° ${widget.ficha.siguienteNumeroReceta.toString().padLeft(4, '0')}',
@@ -1895,6 +1911,7 @@ class _HojaConsentimientoState extends State<_HojaConsentimiento> {
       firmaAlto: _alto,
     );
     return _Marco(
+      ayuda: 'sheet_consentimiento',
       titulo: editando ? 'Consentimiento informado' : 'Nuevo consentimiento',
       paleta: p,
       icono: Icons.gavel_outlined,
